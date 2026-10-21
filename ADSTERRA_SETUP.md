@@ -1,82 +1,108 @@
-# Adsterra setup
+# Adsterra setup, diagnostics and verification
 
-This project ships with **no** Adsterra code. Every ad slot is empty (`snippet: null`) until you paste the code
-that Adsterra generates for *your* publisher account. Nothing here invents IDs, zones, Smartlinks or script URLs.
+Status of this document: written after auditing the real code and testing it in Chrome with **mocked** ad responses.
+Nothing here was tested against live Adsterra servers. Section 5 says exactly how to do that yourself.
 
-## How ads are wired
+## 1. How ads are wired
 
-| Slot id | Where it appears | Suggested unit |
-|---|---|---|
-| `top-banner` | Top of the home page, above the hero | 728x90 (or 320x50) |
-| `mid-banner` | Between the QR studio and the template gallery | 728x90 |
-| `result-banner` | Under the preview and download panel. **Shown only after the user's first successful Generate** | 300x250 |
-| `footer-banner` | Top of the footer, on every page | 728x90 |
+| Slot id | Where | Desktop unit | Phone unit (< 760 px wide) |
+|---|---|---|---|
+| `top-banner` | Top of the home page | 728x90 | 320x50 |
+| `mid-banner` | Between the studio and the templates | 728x90 | 320x50 |
+| `result-banner` | Under the preview and downloads, **after the first successful Generate** | 320x50 | 320x50 |
+| `footer-banner` | Top of the footer, every page | 728x90 | 320x50 |
 
-* Slots are defined in `src/config/ads.ts`. Rendering is in `src/components/ads/AdSlot.tsx`.
-* The Generate-click behaviour is in `src/components/qr/QRStudio.tsx` (`handleGenerateClick`) and
-  `src/components/ads/GenerateAdExperience.tsx`.
-* Each configured banner is mounted **once**, inside its own sandboxed `<iframe srcdoc>`. The iframe isolates
-  Adsterra's global `atOptions` variable, so several banners on one page do not overwrite each other.
-  Re-renders and repeated Generate clicks never rebuild the iframe, so scripts are not re-injected and impressions are not inflated.
-* If a script is blocked (ad blocker, network failure) the iframe stays empty. The QR preview and downloads are unaffected.
+* Code: `src/config/ads.ts` (snippets, unit choice), `src/components/ads/AdSlot.tsx` (frame, status), `src/components/ads/adFrame.ts` (sandbox flags, timeout),
+  `src/components/ads/GenerateAdExperience.tsx` and `QRStudio.handleGenerateClick` (Generate flow).
+* Each slot mounts its snippet **once** in its own `<iframe srcdoc>`. That keeps Adsterra's global `atOptions` separate per slot and means re-renders,
+  resizes and repeated Generate clicks never re-inject a script.
+* The ad unit size is read from the snippet's own `atOptions`, so the reserved box always matches the ad. Units are never scaled with CSS.
+* The unit (desktop or phone) is chosen once at mount from the viewport width.
+* A slot shows the **Advertisement** label only after the loader has injected its ad frame. If nothing is injected within 10 s (script blocked, failed, or ad blocker)
+  the slot collapses, so no empty labelled box is left behind. The QR generator never depends on any of this.
 
-## 1. Banner formats (configured in `src/config/ads.ts`)
+### What "ready" means
+`data-ad-state="ready"` means: the iframe loaded **and** Adsterra's loader script ran and inserted its own frame. It does **not** prove a creative was returned.
+Whether a real advertisement is visible can only be confirmed by looking at the page in a normal browser (section 5).
 
-1. In the Adsterra dashboard go to **Websites → your site → Add code**, choose **Banner**, pick a size and copy the code.
-   It looks like a `<script>` block that sets `atOptions` followed by a `<script src=".../invoke.js">`.
-2. Open `src/config/ads.ts` and paste the code **exactly as given** into the slot's `snippet` as a template literal:
+## 2. Findings from the audit (what was wrong)
 
-   ```ts
-   'top-banner': {
-     id: 'top-banner',
-     description: '…',
-     width: 728,   // must match the unit size you created
-     height: 90,
-     snippet: `
-       <!-- paste Adsterra's code here, unchanged -->
-     `,
-   },
-   ```
-3. Set `width` and `height` to the unit's size. That space is reserved so the page does not jump when the ad loads.
-   On screens narrower than the unit, the iframe is scaled down to fit.
-4. Create a **separate** Adsterra ad unit for each slot you fill (Adsterra keys are per unit). Do not reuse one code in several slots.
-5. Native Banner: paste the container `<div>` and the `<script>` together as one snippet.
+1. **Ad requests carried no `Referer` (most likely cause of blank slots).** The frames were sandboxed *without* `allow-same-origin`, which gives them an opaque
+   origin. Measured in Chromium against a local mock ad server: the loader script request and the nested ad frame request arrived with **no Referer header**,
+   and `localStorage` / `document.cookie` / `top.location` threw `SecurityError` inside the ad code. Ad networks normally match the requesting page to the registered
+   site, so a request that does not say where it came from is a likely reason for an empty response. This is inference about Adsterra's behaviour: the missing Referer
+   and the storage errors are measured facts, their effect on Adsterra's fill is not verified.
+   *Fix:* frames now use `allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox`. The same test then showed the page URL in the Referer
+   header and working storage and cookies.
+2. **Result banner box did not match its unit.** The slot reserved 300x250 but its code is a 320x50 unit: the ad was clipped by 20 px and sat in a 200 px blank box that
+   still showed the word "Advertisement". *Fix:* size now comes from the snippet.
+3. **"Advertisement" label shown over nothing.** The label was always rendered once a snippet existed. *Fix:* label only after the loader injected a frame, slot collapses on failure.
+4. **728x90 scaled down on phones.** CSS-scaling a 728 px unit to about 0.5 on a 390 px screen made it tiny and alters the creative. *Fix:* phones use the 320x50 unit you already have.
+5. **Vercel returned 404 for every route except `/`** (checked with `curl`: `/faq` gave 404). Refreshing or opening `/faq`, `/privacy`, etc. directly failed, and so would the sitemap URLs.
+   *Fix:* `vercel.json` rewrites all paths to `index.html` (takes effect after you push and Vercel redeploys).
+6. **One ad key reused in three slots.** Top, mid and footer all use the same 728x90 unit. Adsterra reporting then cannot tell the slots apart, and some networks limit repeated identical
+   placements. Not changed (they are your units), but see section 6.
 
-Slots you leave as `null` render nothing in production.
+### Security trade-off of fix 1 (please read)
+With `allow-same-origin` the ad code runs as part of your site's origin. It can use cookies and storage like a banner pasted into the page, and it can in principle read this
+site's browser storage (the "recent codes" list, which can hold URLs and contact details, but never Wi-Fi passwords) or remove its own sandbox. The sandbox still blocks
+top-level navigation, forms, modals and downloads. This is the same exposure as pasting Adsterra's script straight into the page, which is Adsterra's standard integration.
+Only Adsterra code you pasted yourself is ever placed in `ads.ts`. The Privacy Policy now says this.
 
-## 2. Page-level formats (Social Bar, Popunder, Interstitial / OnClick)
+If you prefer maximum isolation, set `ADS_CONFIG.isolateFrames = true` in `src/config/ads.ts`. Be aware that this is the configuration in which ads were not being served.
+A cleaner long-term option is a separate origin for the ad frames, but Adsterra matches ads to your registered site, so that needs Adsterra's agreement first.
 
-These formats are a **single script that Adsterra's own code controls**: when and whether anything shows is decided by Adsterra, not by this app.
-They cannot be triggered on demand, and this project deliberately does not try (no popups via `window.open`, no simulated clicks, no redirects).
+## 3. Status of each placement
 
-To use one, paste the exact script from your dashboard into `index.html`, replacing the line
-`<!-- ADSTERRA_PAGE_LEVEL_SCRIPT_PLACEHOLDER (intentionally empty) -->`. It then loads once per page view.
+| Placement | Expected format | Configuration | Rendering | Script status | Real ad verified |
+|---|---|---|---|---|---|
+| `top-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked) | NEEDS MANUAL VERIFICATION (request path verified with a mock only) | NEEDS MANUAL VERIFICATION |
+| `mid-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
+| `result-banner` | Banner 320x50 | PASS | PASS (revealed only after a successful Generate) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
+| `footer-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
+| Banner 468x60, 300x250, 160x300, 160x600 | Banner | NOT CONFIGURED (no snippet in the repo) | n/a | n/a | n/a |
+| Native Banner | Container + script | NOT CONFIGURED | n/a | n/a | n/a |
+| Social Bar | Page-level script | NOT CONFIGURED (`index.html` has no Adsterra script) | n/a | n/a | n/a |
+| Popunder | Page-level script | NOT CONFIGURED | n/a | n/a | n/a |
+| Smartlink | Link | NOT CONFIGURED (and not used as an ad substitute by design) | n/a | n/a | n/a |
 
-**Limitation (important):** an on-demand "show an ad when Generate is clicked" is not something Adsterra's documented banner or
-Social Bar integrations provide, and this app does not invent an API for it. What the Generate click does instead is reveal the
-`result-banner` placement under the QR, the "normal visible Adsterra placement" fallback. Set `ADS_CONFIG.generateAction` to `'none'` to disable even that.
+"Active" in the Adsterra dashboard only means the unit exists. It does not mean the unit is on the site.
 
-Popunder/OnClick formats can interrupt people who are trying to download a QR code. Consider whether that trade-off suits your audience, and follow Adsterra's publisher policies.
+## 4. Changing or adding units
 
-## 3. Development placeholders
+* Paste the code exactly as Adsterra gives it. Banner code is an `atOptions` block followed by `<script src=".../invoke.js">` style loader. Keep the order.
+* `src/config/ads.ts` holds two named constants (`BANNER_728X90`, `BANNER_320X50`). Slots point at them. To give a slot its own unit, create a new unit in the dashboard
+  and put its snippet in that slot's `snippet` (and `mobileSnippet`). The size is read from the snippet automatically.
+* Page-level formats (Social Bar, Popunder): one script from your dashboard, pasted in `index.html` replacing the `ADSTERRA_PAGE_LEVEL_SCRIPT_PLACEHOLDER` comment.
+  Adsterra's code decides when they show. They cannot be triggered by Generate, and this app does not try. Popunders can interrupt people while they download a QR code, so
+  consider that before enabling one.
+* Native Banner needs a container element plus a script. It is not supported by `AdSlot` yet. Send the snippet if you want it added.
+* No Content Security Policy is shipped (Vercel sends none either). If you add one later, take the allowed hosts from the network tab with ads loading.
 
-With no snippet, development builds (`npm run dev`) show a dashed box labelled **"Development placeholder · not an advertisement — Adsterra integration not configured"**.
-It is never shown in a production build. To preview it in a build anyway, set `VITE_SHOW_AD_PLACEHOLDERS=true` when building.
-Do not put publisher IDs in `.env`. There are none to configure; snippets live in `ads.ts`.
+## 5. How to verify real ads yourself (manual, required)
 
-## 4. Content Security Policy
+Do this in a normal browser with **ad blockers and tracker blocking turned off** (also Brave Shields, Firefox strict mode, and VPN/DNS ad filters).
 
-No CSP is shipped, because a restrictive policy would block Adsterra's scripts and the domains they load vary by format and change over time.
-If you add one, take the exact domains from your browser's network tab with ads enabled. You will need at least `script-src`, `frame-src`/`child-src`
-(the app's own `srcdoc` frames), `img-src` and `connect-src` entries for Adsterra's hosts, plus `data:` and `blob:` in `img-src` for the QR previews.
-Test with ads loading before deploying.
+1. Push the changes so Vercel deploys, then open https://qr-gen-two-psi.vercel.app/ in a fresh private window.
+2. DevTools, Network tab, reload. Filter by the loader host you see in your snippets. For each slot you should see a `200` script request, then a second request for the ad frame.
+   Click a request and confirm the request headers contain `Referer: https://qr-gen-two-psi.vercel.app/`.
+3. Elements tab: inside the slot's `iframe`, expect Adsterra's own `iframe` containing the creative. Look at the page: an actual banner should be visible under the small "Advertisement" label.
+4. Console tab: look for CSP, mixed-content or blocked-request errors. (In dev builds, `[ads]` messages say whether a loader injected a frame.)
+5. Slot disappears after about 10 s: the loader injected nothing, so the script was blocked or Adsterra returned nothing. Check the next list.
+6. Test on a phone (or DevTools device mode, 390 px wide, then reload): the 320x50 unit should appear.
+7. Do **not** click your own ads, and do not reload repeatedly to "see more" ads. Adsterra treats that as invalid traffic.
 
-## 5. Checklist before going live
+If requests succeed but no creative appears:
+* New sites/units can take time to start filling, and low-volume or low-value geos may have no demand. Check the Adsterra dashboard statistics (impressions) after some hours.
+* Confirm the site URL registered in Adsterra is exactly `qr-gen-two-psi.vercel.app` (not a different or www variant). Ask Adsterra support whether the site and these unit IDs are active for that domain.
+* If they say the domain is fine and a request with the correct Referer still returns nothing, send Adsterra the failing request (URL with the key removed, response status and body).
 
-- [ ] Your site is added and approved in Adsterra.
-- [ ] One unit created per slot, sizes match `width`/`height`.
-- [ ] Snippets pasted unchanged into `src/config/ads.ts`.
-- [ ] `SITE.url` and `SITE.contactEmail` set in `src/config/site.ts`.
-- [ ] `public/sitemap.xml` and `public/robots.txt` use your real domain.
-- [ ] Privacy Policy re-read and checked against the services you actually enable (also have it legally reviewed for your jurisdiction, including consent requirements for ad cookies such as in the EU/UK).
-- [ ] Open the site with an ad blocker on and confirm that generating and downloading still work.
+## 6. Recommended follow-ups (your decision)
+* Create separate units for top, mid and footer so the dashboard shows which placement earns what.
+* Consider a 300x250 banner for the result slot (more valuable than 320x50). Send me that snippet and I will wire it in.
+* If you will not use a placement, set its snippets to `null` and it disappears in production.
+
+## 7. Development
+`npm run dev` shows a dashed "Adsterra integration not configured" box for any slot with no snippet. It is never shown in production unless `VITE_SHOW_AD_PLACEHOLDERS=true`
+is set at build time, and it is never labelled "Advertisement".
+`npm run test` runs the automated checks. The tests use fake `.invalid` snippets and never contact an ad network.

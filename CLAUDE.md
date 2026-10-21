@@ -12,15 +12,16 @@ QRForge: a Vite 8 + React 19 + TypeScript 6 + Tailwind v4 SPA that generates sty
 npm run dev       # Vite dev server (http://localhost:5173)
 npm run build     # tsc -b (type-check all project references) then vite build
 npm run lint      # oxlint (not ESLint)
+npm run test      # vitest run (jsdom + Testing Library); tests use fake `.invalid` ad snippets, never real keys
 npx tsc -b        # type-check only
 ```
 
-There is no test runner. Verification so far was done by driving the dev server in a browser: dev modules can be imported from the page
-(`await import('/src/lib/qrExport.ts')`) to render a payload and decode it with `jsqr`.
+Browser verification was done by driving the dev server with Playwright/Chrome: dev modules can be imported from the page
+(`await import('/src/lib/qrExport.ts')`) to render a payload and decode it with `jsqr`. Intercept requests to the ad host instead of letting them through.
 
-## Git layout (important)
+## Git layout
 
-This directory is **not** its own git repo; the nearest `.git` is `C:\Users\mahdi` (home). Run `git init` here before committing anything, and never stage from the home-level repo.
+This directory is its own git repo (remote `origin` = GitHub `Mahdi-030/qr-gen`, branch `main`). Vercel deploys from it, so a change is not live until it is committed and pushed.
 The home-level CLAUDE.md's graphify step does not apply (no `graphify-out/` here).
 
 ## Architecture
@@ -33,8 +34,11 @@ SVG download, and (rasterized via canvas in `rasterize`) PNG/JPEG/PDF. Keep it t
 - The result shown is the *generated snapshot* (`generated.payload`) plus the *live* style. Editing inputs after Generate marks it stale until Generate is pressed again.
 - `lib/qrPayload.ts` builds standard payloads (WIFI:, vCard, iCalendar, mailto:, geo:, SMSTO:, wa.me); `lib/validation.ts` validates per type.
 - `buildOptions` passes the payload through `toUtf8Binary`: qr-code-styling otherwise encodes non-ASCII as Latin-1 and produces garbled scans. Do not remove it.
-- Ads: `config/ads.ts` (slots, all `snippet: null` until the owner pastes real Adsterra code) -> `components/ads/AdSlot.tsx` (sandboxed `srcdoc` iframe mounted once; dev-only placeholder otherwise).
-  `QRStudio.handleGenerateClick` is the single Generate entry point; `GenerateAdExperience` reveals the result slot after the first successful generate. Never invent Adsterra APIs, auto-click, `window.open` popups, or re-inject scripts per click.
+- Ads: `config/ads.ts` holds the owner's real Adsterra snippets (never print, log or put the keys in tests/reports; keep them byte-for-byte) -> `components/ads/AdSlot.tsx` (`srcdoc` iframe mounted once, size parsed from the snippet,
+  desktop vs mobile unit chosen at mount, collapses if the loader injects nothing in 10 s; dev-only placeholder when unconfigured).
+  The frame sandbox deliberately includes `allow-same-origin`: without it the ad request has no Referer and storage throws (measured), see `ADSTERRA_SETUP.md` and `components/ads/adFrame.ts` before changing it.
+  `QRStudio.handleGenerateClick` is the single Generate entry point; `GenerateAdExperience` reveals the result slot after the first successful generate. Never invent Adsterra APIs, auto-click, `window.open` popups, scale ad units with CSS, or re-inject scripts per click.
+- Deployment: Vercel from `main` on GitHub. `vercel.json` rewrites all paths to `index.html` (SPA routing); without it deep links 404.
 - Never persist Wi-Fi passwords (history strips them). Heavy deps (`jspdf`, `jsqr`, `qr-code-styling`) must stay dynamically imported.
 
 ## TypeScript / lint constraints

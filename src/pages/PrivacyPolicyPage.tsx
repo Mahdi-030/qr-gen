@@ -39,6 +39,10 @@ export default function PrivacyPolicyPage() {
         share the contents of your QR codes with advertisers.
       </p>
       <p>
+        Advertising code runs in frames that belong to this website. Because of this, advertising code could in principle read data that this site keeps in your browser, such as the
+        recent-codes list described above. We do not send that data to advertisers. If you would rather not keep it, use “Clear history” in the generator.
+      </p>
+      <p>
         To learn how Adsterra processes data and what choices it offers you, read the privacy policy published on Adsterra’s own website. You can also limit
         ad tracking through your browser settings, a tracker-blocking extension or your device’s advertising controls. Blocking ads does not affect the
         QR generator.
