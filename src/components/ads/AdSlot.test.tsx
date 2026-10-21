@@ -15,10 +15,12 @@ afterEach(() => restore())
 
 const frame = () => document.querySelector('iframe') as HTMLIFrameElement | null
 
-/** Simulates the Adsterra loader having document.write()-ed its ad frame into our frame. */
-function injectAdFrame(f: HTMLIFrameElement) {
+/** Simulates the loader injecting its ad frame; `creative` puts a rendered creative (a video element) inside it. */
+function injectAdFrame(f: HTMLIFrameElement, creative = true) {
   const doc = f.contentDocument!
-  doc.body.appendChild(doc.createElement('iframe'))
+  const inner = doc.createElement('iframe')
+  doc.body.appendChild(inner)
+  if (creative) inner.contentDocument!.body.appendChild(inner.contentDocument!.createElement('video'))
 }
 
 describe('AdSlot: configuration states', () => {
@@ -128,6 +130,30 @@ describe('AdSlot: load, failure and cleanup', () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 
+  it('does NOT report ready when the loader injected a frame but no creative arrived (empty response or blocked CDN)', () => {
+    vi.useFakeTimers()
+    render(<AdSlot id="top-banner" />)
+    const f = frame()!
+    fireEvent.load(f)
+    injectAdFrame(f, false)
+    act(() => vi.advanceTimersByTime(AD_LOAD_TIMEOUT_MS - 1000))
+    expect(screen.queryByText('Advertisement')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-ad-state]')).toHaveAttribute('data-ad-state', 'loading')
+    act(() => vi.advanceTimersByTime(2000))
+    expect(document.querySelector('[data-ad-slot]')).toBeNull()
+  })
+
+  it('shows the label once a creative appears late (slow VPN route), before the timeout', () => {
+    vi.useFakeTimers()
+    render(<AdSlot id="top-banner" />)
+    const f = frame()!
+    fireEvent.load(f)
+    act(() => vi.advanceTimersByTime(AD_LOAD_TIMEOUT_MS - 2000))
+    injectAdFrame(f, true)
+    act(() => vi.advanceTimersByTime(500))
+    expect(screen.getByText('Advertisement')).toBeInTheDocument()
+  })
+
   it('clears its polling timer on unmount', () => {
     vi.useFakeTimers()
     const { unmount } = render(<AdSlot id="footer-banner" />)
@@ -141,5 +167,21 @@ describe('AdSlot: load, failure and cleanup', () => {
     // The component exposes no state that says an ad creative was served. Documented in AdSlot.tsx.
     render(<AdSlot id="top-banner" />)
     expect(document.querySelector('[data-ad-state]')?.getAttribute('data-ad-state')).toBe('loading')
+  })
+})
+
+describe('AdSlot: ?adsdebug=1 support switch', () => {
+  it('shows why an empty slot has no ad, naming only the failing host', () => {
+    window.history.pushState({}, '', '/?adsdebug=1')
+    vi.useFakeTimers()
+    render(<AdSlot id="top-banner" />)
+    const f = frame()!
+    fireEvent.load(f)
+    injectAdFrame(f, false)
+    act(() => vi.advanceTimersByTime(AD_LOAD_TIMEOUT_MS + 1000))
+    const note = screen.getByRole('note')
+    expect(note).toHaveTextContent(/ad slot “top-banner” is empty/i)
+    expect(note.parentElement).toHaveAttribute('data-ad-state', 'empty')
+    window.history.pushState({}, '', '/')
   })
 })

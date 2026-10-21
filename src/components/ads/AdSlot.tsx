@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AD_SLOTS, ADS_CONFIG, resolveAdUnit, type AdSlotId } from '../../config/ads'
-import { AD_LOAD_TIMEOUT_MS, AD_POLL_MS, SANDBOX_ISOLATED, SANDBOX_SAME_ORIGIN, buildSrcDoc } from './adFrame'
+import { AD_LOAD_TIMEOUT_MS, AD_POLL_MS, SANDBOX_ISOLATED, SANDBOX_SAME_ORIGIN, buildSrcDoc, inspectAdDocument } from './adFrame'
 
 interface Props {
   id: AdSlotId
@@ -31,6 +31,9 @@ export function AdSlot({ id, className = '' }: Props) {
   const frameRef = useRef<HTMLIFrameElement>(null)
   const timer = useRef<number | undefined>(undefined)
   const [status, setStatus] = useState<AdSlotStatus>('loading')
+  const [reason, setReason] = useState('')
+  // Opt-in support switch: open the site with ?adsdebug=1 to see why a slot has no ad instead of it disappearing.
+  const [debug] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('adsdebug'))
 
   useEffect(() => () => window.clearInterval(timer.current), [])
 
@@ -51,7 +54,16 @@ export function AdSlot({ id, className = '' }: Props) {
     )
   }
 
-  if (status === 'empty') return null
+  if (status === 'empty') {
+    if (!debug) return null
+    return (
+      <div className={`mx-auto w-full max-w-5xl px-4 ${className}`} data-ad-slot={id} data-ad-state="empty">
+        <p role="note" className="rounded-xl border border-dashed border-line px-3 py-2 text-center text-xs text-muted">
+          Ad slot “{id}” is empty: {reason}.
+        </p>
+      </div>
+    )
+  }
 
   /** Poll the frame (same-origin only) until the loader has injected its ad frame, or give up. */
   const onLoad = () => {
@@ -70,14 +82,23 @@ export function AdSlot({ id, className = '' }: Props) {
         setStatus('ready')
         return
       }
-      const injected = doc.querySelector('iframe, ins, img, a')
-      if (injected) {
+      const seen = inspectAdDocument(doc)
+      if (seen.state === 'content' || seen.state === 'unknown') {
         window.clearInterval(timer.current)
-        devLog(`${id}: loader injected a frame (${unit.variant} ${unit.width}x${unit.height}). This does not prove an ad was returned.`)
+        devLog(`${id}: ${seen.state === 'content' ? 'a creative is rendered' : 'ad runs in a frame that cannot be inspected'} (${unit.variant} ${unit.width}x${unit.height}).`)
         setStatus('ready')
       } else if (Date.now() - started > AD_LOAD_TIMEOUT_MS) {
         window.clearInterval(timer.current)
-        devLog(`${id}: nothing was injected within ${AD_LOAD_TIMEOUT_MS / 1000}s. The ad script was blocked, failed, or returned nothing. Slot collapsed.`)
+        const why =
+          seen.state === 'none'
+            ? 'the ad script injected nothing (script blocked, failed or returned nothing)'
+            : seen.failedHosts.length
+              ? `the creative could not be loaded from ${seen.failedHosts.join(', ')} (blocked by a filter, VPN or network policy?)`
+              : seen.state === 'pending'
+                ? 'the creative was still loading'
+                : 'the ad server returned no creative (no inventory for this visitor)'
+        devLog(`${id}: slot collapsed after ${AD_LOAD_TIMEOUT_MS / 1000}s: ${why}.`)
+        setReason(why)
         setStatus('empty')
       }
     }

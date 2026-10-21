@@ -133,3 +133,31 @@ exclude the adult category (and review the per-unit category/filter options). As
 ### To add Native Banner and Social Bar
 Send the exact code from the dashboard for each. Social Bar is a single page-level script (goes in `index.html`; it overlays a corner of the screen and may sit near the
 Generate button on phones). Native Banner is a container plus script and needs its own slot. Neither will be made up.
+
+## 9. VPN, proxy and DNS-filter visitors
+
+What QRForge controls and what it does not:
+* QRForge does **not** detect VPNs, filter by IP or country, or try to get around blockers. Whether a VPN visitor receives an ad is decided by Adsterra (inventory,
+  geo, anti-fraud) and by the visitor's network/browser (VPN ad-blocking, DNS filters, extensions). The app cannot and does not override that.
+* Before 2026-10-22 evening a slot was marked "ready" as soon as the loader injected its frame. If the ad server answered but the creative never loaded
+  (blocked image CDN, empty response), the visitor saw an empty box labelled "Advertisement". Now a slot is only shown when a creative is actually rendered
+  (an image larger than a 1x1 pixel, or media). Otherwise it disappears after 15 s (long enough for slow VPN routes), without affecting the page.
+* Reproduced with simulated conditions (not a real VPN): creative CDN blocked, empty ad response and ad host blocked all left the old code showing an empty labelled
+  box, and the new code removes the slot. Normal delivery is unchanged.
+
+Hosts involved in a banner impression (observed on the live site, 2026-10-22):
+
+| Host | Role | If blocked |
+|---|---|---|
+| `bauval.org` | loader script (`/22/`), ad request (`/19/`), counters | no ad at all |
+| `static.nresystems.com` | tracking pixel | usually ad still shows |
+| `cdn.storageimagedisplay.com` | creative images | request "succeeds" but the box stays empty |
+
+### How to test VPN on and off yourself
+1. Open https://qr-gen-two-psi.vercel.app/?adsdebug=1 in a clean Chrome profile with extensions off (VPN off first).
+2. DevTools, Network tab, filter `bauval|nresystems|storageimagedisplay`. Record status for each host. A blocked request shows `ERR_BLOCKED_BY_CLIENT`,
+   `ERR_NAME_NOT_RESOLVED` or `ERR_CONNECTION_*`.
+3. Look at the page: an ad shows, or (with `?adsdebug=1`) an "Ad slot ... is empty: reason" line names the cause, including the blocked host name.
+4. Repeat with the VPN on, then with the VPN's ad-blocking / threat-protection feature off. Compare the hosts from step 2.
+5. Interpret: `bauval.org` blocked means the VPN/DNS filter blocks the ad network. Only the image host blocked means the same for the CDN. All 200 but "no creative"
+   means Adsterra returned nothing for that IP or location, so ask Adsterra support. Do not try to bypass either.
