@@ -13,6 +13,9 @@ Nothing here was tested against live Adsterra servers. Section 5 says exactly ho
 | `faq-banner` | Home page, after the FAQ | 728x90 | 320x50 |
 | `page-top-banner` / `page-bottom-banner` | About, Contact, FAQ, Privacy, Terms (under the title and at the end) | 728x90 | 320x50 |
 | `result-banner` | Under the preview and downloads, **after the first successful Generate** | 320x50 | 320x50 |
+| `features-banner` | Home page, between the templates and the features | 728x90 | 320x50 |
+| `faq-banner` | Home page, after the FAQ | 728x90 | 320x50 |
+| `page-top-banner` / `page-bottom-banner` | About, Contact, FAQ, Privacy, Terms (under the title and at the end) | 728x90 | 320x50 |
 | `footer-banner` | Top of the footer, every page | 728x90 | 320x50 |
 
 * Code: `src/config/ads.ts` (snippets, unit choice), `src/components/ads/AdSlot.tsx` (frame, status), `src/components/ads/adFrame.ts` (sandbox flags, timeout),
@@ -64,6 +67,7 @@ A cleaner long-term option is a separate origin for the ad frames, but Adsterra 
 | `result-banner` | Banner 320x50 | PASS | PASS (revealed only after a successful Generate) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
 | `footer-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
 | `features-banner`, `faq-banner`, `page-top-banner`, `page-bottom-banner` | Banner 728x90 (320x50 on phones) | PASS (reuse the same two units) | PASS (Chrome, mocked) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
+| `features-banner`, `faq-banner`, `page-top-banner`, `page-bottom-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked, production build) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
 | Banner 468x60, 300x250, 160x300, 160x600 | Banner | NOT CONFIGURED (no snippet in the repo) | n/a | n/a | n/a |
 | Native Banner | Container + script | NOT CONFIGURED | n/a | n/a | n/a |
 | Social Bar | Page-level script | NOT CONFIGURED (`index.html` has no Adsterra script) | n/a | n/a | n/a |
@@ -102,6 +106,7 @@ If requests succeed but no creative appears:
 * If they say the domain is fine and a request with the correct Referer still returns nothing, send Adsterra the failing request (URL with the key removed, response status and body).
 
 ## 6. Recommended follow-ups (your decision)
+* The home page now has 5 banners and content pages 3, all reusing two units. More than this hurts visitors and risks Adsterra's ad-density policy, so I stopped here. Better revenue comes from separate units per slot and bigger formats, not more banners.
 * Create separate units for top, mid and footer so the dashboard shows which placement earns what.
 * Consider a 300x250 banner for the result slot (more valuable than 320x50). Send me that snippet and I will wire it in.
 * If you will not use a placement, set its snippets to `null` and it disappears in production.
