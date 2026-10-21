@@ -1,7 +1,7 @@
 # Adsterra setup, diagnostics and verification
 
-Status of this document: written after auditing the real code and testing it in Chrome with **mocked** ad responses.
-Nothing here was tested against live Adsterra servers. Section 5 says exactly how to do that yourself.
+Status of this document: audited the real code, then verified the **live site** (https://qr-gen-two-psi.vercel.app/) in a real Chrome on 2026-10-22.
+Banner scripts load, Adsterra returns real creatives, and they render. Native Banner and Social Bar are not integrated yet (no snippets supplied). See sections 2, 3 and 8.
 
 ## 1. How ads are wired
 
@@ -33,11 +33,11 @@ Whether a real advertisement is visible can only be confirmed by looking at the 
 
 ## 2. Findings from the audit (what was wrong)
 
-1. **Ad requests carried no `Referer` (most likely cause of blank slots).** The frames were sandboxed *without* `allow-same-origin`, which gives them an opaque
+1. **Ad requests carried no `Referer` (confirmed root cause of the blank slots).** The frames were sandboxed *without* `allow-same-origin`, which gives them an opaque
    origin. Measured in Chromium against a local mock ad server: the loader script request and the nested ad frame request arrived with **no Referer header**,
    and `localStorage` / `document.cookie` / `top.location` threw `SecurityError` inside the ad code. Ad networks normally match the requesting page to the registered
-   site, so a request that does not say where it came from is a likely reason for an empty response. This is inference about Adsterra's behaviour: the missing Referer
-   and the storage errors are measured facts, their effect on Adsterra's fill is not verified.
+   site, so a request that does not say where it came from is a likely reason for an empty response. Confirmed on the live domain with one A/B test: the same snippet in an old-style isolated frame sent the ad request with no Referer and got **no creative** (0 images);
+   in the current frame the Referer was the site URL and a creative image loaded.
    *Fix:* frames now use `allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox`. The same test then showed the page URL in the Referer
    header and working storage and cookies.
 2. **Result banner box did not match its unit.** The slot reserved 300x250 but its code is a 320x50 unit: the ad was clipped by 20 px and sat in a 200 px blank box that
@@ -62,15 +62,15 @@ A cleaner long-term option is a separate origin for the ad frames, but Adsterra 
 
 | Placement | Expected format | Configuration | Rendering | Script status | Real ad verified |
 |---|---|---|---|---|---|
-| `top-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked) | NEEDS MANUAL VERIFICATION (request path verified with a mock only) | NEEDS MANUAL VERIFICATION |
-| `mid-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
-| `result-banner` | Banner 320x50 | PASS | PASS (revealed only after a successful Generate) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
-| `footer-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
-| `features-banner`, `faq-banner`, `page-top-banner`, `page-bottom-banner` | Banner 728x90 (320x50 on phones) | PASS (reuse the same two units) | PASS (Chrome, mocked) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
-| `features-banner`, `faq-banner`, `page-top-banner`, `page-bottom-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked, production build) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
+| `top-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked) | PASS (live, 200) | NEEDS MANUAL VERIFICATION |
+| `mid-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked) | PASS (live, 200) | PASS (creative rendered, live) |
+| `result-banner` | Banner 320x50 | PASS | PASS (revealed only after a successful Generate) | PASS (live, 200) | PASS (creative rendered, live) |
+| `footer-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked) | PASS (live, 200) | PASS (creative rendered, live) |
+| `features-banner`, `faq-banner`, `page-top-banner`, `page-bottom-banner` | Banner 728x90 (320x50 on phones) | PASS (reuse the same two units) | PASS (Chrome, mocked) | PASS (live, 200) | PASS (creative rendered, live) |
+| `features-banner`, `faq-banner`, `page-top-banner`, `page-bottom-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked, production build) | PASS (live, 200) | PASS (creative rendered, live) |
 | Banner 468x60, 300x250, 160x300, 160x600 | Banner | NOT CONFIGURED (no snippet in the repo) | n/a | n/a | n/a |
-| Native Banner | Container + script | NOT CONFIGURED | n/a | n/a | n/a |
-| Social Bar | Page-level script | NOT CONFIGURED (`index.html` has no Adsterra script) | n/a | n/a | n/a |
+| Native Banner | Container + script | NOT CONFIGURED (snippet not supplied) | n/a | n/a | n/a |
+| Social Bar | Page-level script | NOT CONFIGURED (snippet not supplied; `index.html` has no Adsterra script) | n/a | n/a | n/a |
 | Popunder | Page-level script | NOT CONFIGURED | n/a | n/a | n/a |
 | Smartlink | Link | NOT CONFIGURED (and not used as an ad substitute by design) | n/a | n/a | n/a |
 
@@ -115,3 +115,21 @@ If requests succeed but no creative appears:
 `npm run dev` shows a dashed "Adsterra integration not configured" box for any slot with no snippet. It is never shown in production unless `VITE_SHOW_AD_PLACEHOLDERS=true`
 is set at build time, and it is never labelled "Advertisement".
 `npm run test` runs the automated checks. The tests use fake `.invalid` snippets and never contact an ad network.
+
+## 8. Live verification results (2026-10-22)
+Method: one real Chrome load of the production site, no mocking, no clicks. Recorded network, frames and console.
+* **Banner scripts load:** yes. Each banner loader returned 200 with the site URL as Referer.
+* **Scripts initialise:** yes. Each slot's frame contained an injected ad frame, then Adsterra ad requests returned 200 (a few `307` redirects are normal).
+* **Real ad content rendered:** yes. Creative images (GIF/JPEG, 23-73 KB) loaded from Adsterra's image CDN and displayed in the 728x90 slots (visually confirmed in a screenshot).
+* **Console:** no page errors. Only Chrome's expected warning that `allow-scripts` plus `allow-same-origin` can escape a sandbox (see section 2).
+* **Native Banner / Social Bar:** not operational. They are not on the site because no snippet has been supplied.
+* **Not tested:** phone-sized viewport on the live site, the result banner after Generate on the live site, other browsers, ad blockers.
+
+### Content warning
+The creative served in the top slot was **sexually explicit** imagery. Adsterra serves adult ads unless you restrict them. On a general-audience tool this can breach
+the site's own audience expectations, get you flagged by browsers/parents' filters and hurt trust. In the Adsterra dashboard, edit the website's settings and
+exclude the adult category (and review the per-unit category/filter options). Ask Adsterra support if the option is not visible. This cannot be fixed in code.
+
+### To add Native Banner and Social Bar
+Send the exact code from the dashboard for each. Social Bar is a single page-level script (goes in `index.html`; it overlays a corner of the screen and may sit near the
+Generate button on phones). Native Banner is a container plus script and needs its own slot. Neither will be made up.
