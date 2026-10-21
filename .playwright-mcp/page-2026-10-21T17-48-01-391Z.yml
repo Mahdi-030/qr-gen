@@ -1,0 +1,61 @@
+- generic [ref=e2]:
+  - link "Skip to content" [ref=e3] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "QRForge home" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - text: QRForge
+      - navigation "Main" [ref=e10]:
+        - link "Home" [ref=e11] [cursor=pointer]:
+          - /url: /
+        - link "QR Generator" [ref=e12] [cursor=pointer]:
+          - /url: /#studio
+        - link "Templates" [ref=e13] [cursor=pointer]:
+          - /url: /#templates
+        - link "Features" [ref=e14] [cursor=pointer]:
+          - /url: /#features
+        - link "FAQ" [ref=e15] [cursor=pointer]:
+          - /url: /faq
+      - generic [ref=e16]:
+        - button "Switch to dark theme" [ref=e17]
+        - link [ref=e20] [cursor=pointer]:
+          - /url: /#studio
+          - button "Create QR Code" [ref=e21]
+  - main [ref=e22]:
+    - status "Loading" [ref=e24]
+  - contentinfo [ref=e25]:
+    - note [ref=e27]:
+      - paragraph [ref=e28]: Development placeholder · not an advertisement
+      - paragraph [ref=e29]: Adsterra integration not configured
+      - paragraph [ref=e30]: Slot “footer-banner” · 728×90 · Responsive footer banner (e.g. 728x90)
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - link "QRForge home" [ref=e33] [cursor=pointer]:
+          - /url: /
+          - text: QRForge
+        - paragraph [ref=e37]: Free, private QR code generator. Your content is encoded in your browser and never sent to our servers.
+      - navigation "Product" [ref=e38]:
+        - paragraph [ref=e39]: Product
+        - link "QR Generator" [ref=e40] [cursor=pointer]:
+          - /url: /#studio
+        - link "Templates" [ref=e41] [cursor=pointer]:
+          - /url: /#templates
+        - link "Features" [ref=e42] [cursor=pointer]:
+          - /url: /#features
+        - link "FAQ" [ref=e43] [cursor=pointer]:
+          - /url: /faq
+      - navigation "Company" [ref=e44]:
+        - paragraph [ref=e45]: Company
+        - link "About" [ref=e46] [cursor=pointer]:
+          - /url: /about
+        - link "Contact" [ref=e47] [cursor=pointer]:
+          - /url: /contact
+      - navigation "Legal" [ref=e48]:
+        - paragraph [ref=e49]: Legal
+        - link "Privacy Policy" [ref=e50] [cursor=pointer]:
+          - /url: /privacy
+        - link "Terms of Service" [ref=e51] [cursor=pointer]:
+          - /url: /terms
+    - generic [ref=e52]: © 2026 QRForge. QR Code is a registered trademark of DENSO WAVE INCORPORATED.
+  - region "Notifications"

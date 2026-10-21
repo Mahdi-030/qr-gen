@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#6d4aff" />
+    <title>QRForge – Free Custom QR Code Generator</title>
+    <meta
+      name="description"
+      content="Create beautiful, customizable QR codes for links, Wi-Fi, contacts, events and more. Generated in your browser. Download PNG, SVG, JPEG or PDF for free."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="QRForge" />
+    <meta property="og:title" content="QRForge – Free Custom QR Code Generator" />
+    <meta
+      property="og:description"
+      content="Create beautiful, customizable QR codes in seconds. Private, in-browser generation with PNG, SVG, JPEG and PDF export."
+    />
+    <meta name="twitter:card" content="summary" />
+    <!--
+      Canonical and og:url are set at runtime from src/config/site.ts (SITE.url).
+
+      ADSTERRA: page-level formats (Social Bar, Popunder, ...) are pasted manually
+      below ONLY if the site owner chooses them. Banner formats are configured in
+      src/config/ads.ts instead. See ADSTERRA_SETUP.md.
+    -->
+    <!-- ADSTERRA_PAGE_LEVEL_SCRIPT_PLACEHOLDER (intentionally empty) -->
+    <script>
+      // Apply the saved theme before first paint to avoid a flash.
+      try {
+        var t = localStorage.getItem('qrforge:theme');
+        if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
