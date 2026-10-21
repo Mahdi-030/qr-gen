@@ -13,7 +13,15 @@
  * they show. They go in index.html (see ADSTERRA_SETUP.md). They cannot be triggered on demand.
  */
 
-export type AdSlotId = 'top-banner' | 'mid-banner' | 'result-banner' | 'footer-banner'
+export type AdSlotId =
+  | 'top-banner'
+  | 'mid-banner'
+  | 'features-banner'
+  | 'faq-banner'
+  | 'result-banner'
+  | 'page-top-banner'
+  | 'page-bottom-banner'
+  | 'footer-banner'
 
 export interface AdSlotConfig {
   id: AdSlotId
@@ -71,6 +79,38 @@ export const AD_SLOTS: Record<AdSlotId, AdSlotConfig> = {
   'mid-banner': {
     id: 'mid-banner',
     description: 'Banner between the QR editor and the lower content (728x90, 320x50 on phones)',
+    width: 728,
+    height: 90,
+    snippet: BANNER_728X90,
+    mobileSnippet: BANNER_320X50,
+  },
+  'features-banner': {
+    id: 'features-banner',
+    description: 'Banner between the templates and the features section (728x90, 320x50 on phones)',
+    width: 728,
+    height: 90,
+    snippet: BANNER_728X90,
+    mobileSnippet: BANNER_320X50,
+  },
+  'faq-banner': {
+    id: 'faq-banner',
+    description: 'Banner after the FAQ at the bottom of the home page (728x90, 320x50 on phones)',
+    width: 728,
+    height: 90,
+    snippet: BANNER_728X90,
+    mobileSnippet: BANNER_320X50,
+  },
+  'page-top-banner': {
+    id: 'page-top-banner',
+    description: 'Banner under the title of About, Contact, FAQ, Privacy and Terms (728x90, 320x50 on phones)',
+    width: 728,
+    height: 90,
+    snippet: BANNER_728X90,
+    mobileSnippet: BANNER_320X50,
+  },
+  'page-bottom-banner': {
+    id: 'page-bottom-banner',
+    description: 'Banner at the end of the content on About, Contact, FAQ, Privacy and Terms (728x90, 320x50 on phones)',
     width: 728,
     height: 90,
     snippet: BANNER_728X90,

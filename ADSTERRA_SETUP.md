@@ -9,6 +9,9 @@ Nothing here was tested against live Adsterra servers. Section 5 says exactly ho
 |---|---|---|---|
 | `top-banner` | Top of the home page | 728x90 | 320x50 |
 | `mid-banner` | Between the studio and the templates | 728x90 | 320x50 |
+| `features-banner` | Home page, between templates and features | 728x90 | 320x50 |
+| `faq-banner` | Home page, after the FAQ | 728x90 | 320x50 |
+| `page-top-banner` / `page-bottom-banner` | About, Contact, FAQ, Privacy, Terms (under the title and at the end) | 728x90 | 320x50 |
 | `result-banner` | Under the preview and downloads, **after the first successful Generate** | 320x50 | 320x50 |
 | `footer-banner` | Top of the footer, every page | 728x90 | 320x50 |
 
@@ -60,6 +63,7 @@ A cleaner long-term option is a separate origin for the ad frames, but Adsterra 
 | `mid-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
 | `result-banner` | Banner 320x50 | PASS | PASS (revealed only after a successful Generate) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
 | `footer-banner` | Banner 728x90 (320x50 on phones) | PASS | PASS (Chrome, mocked) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
+| `features-banner`, `faq-banner`, `page-top-banner`, `page-bottom-banner` | Banner 728x90 (320x50 on phones) | PASS (reuse the same two units) | PASS (Chrome, mocked) | NEEDS MANUAL VERIFICATION | NEEDS MANUAL VERIFICATION |
 | Banner 468x60, 300x250, 160x300, 160x600 | Banner | NOT CONFIGURED (no snippet in the repo) | n/a | n/a | n/a |
 | Native Banner | Container + script | NOT CONFIGURED | n/a | n/a | n/a |
 | Social Bar | Page-level script | NOT CONFIGURED (`index.html` has no Adsterra script) | n/a | n/a | n/a |

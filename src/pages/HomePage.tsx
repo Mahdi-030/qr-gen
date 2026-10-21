@@ -84,6 +84,8 @@ export default function HomePage() {
 
       <QRTemplateGallery studio={studio} />
 
+      <AdSlot id="features-banner" className="py-2" />
+
       <section id="features" aria-labelledby="features-h" className="mx-auto max-w-6xl px-4 py-12">
         <h2 id="features-h" className="text-3xl font-extrabold tracking-tight">Everything you need, nothing you don’t</h2>
         <p className="mt-2 max-w-2xl text-muted">A focused toolkit for QR codes that look good and scan reliably.</p>
@@ -105,6 +107,8 @@ export default function HomePage() {
           <Link to="/faq" className="font-semibold text-accent hover:underline">See all questions →</Link>
         </p>
       </section>
+
+      <AdSlot id="faq-banner" className="py-2" />
     </>
   )
 }
