@@ -37,28 +37,64 @@ export const AD_SLOTS: Record<AdSlotId, AdSlotConfig> = {
     description: 'Responsive banner near the top of the main content (e.g. 728x90)',
     width: 728,
     height: 90,
-    snippet: null, // TODO(owner): paste Adsterra banner code here
+    snippet: `<script>
+  atOptions = {
+    'key' : '83f8d383611527dc0e826a81257cc020',
+    'format' : 'iframe',
+    'height' : 90,
+    'width' : 728,
+    'params' : {}
+  };
+</script>
+<script src="https://bauval.org/22/83f8d383611527dc0e826a81257cc020"></script>`, // TODO(owner): paste Adsterra banner code here
   },
   'mid-banner': {
     id: 'mid-banner',
     description: 'Banner between the QR editor and the lower content (e.g. 728x90)',
     width: 728,
     height: 90,
-    snippet: null, // TODO(owner): paste Adsterra banner code here
+    snippet: `<script>
+  atOptions = {
+    'key' : '83f8d383611527dc0e826a81257cc020',
+    'format' : 'iframe',
+    'height' : 90,
+    'width' : 728,
+    'params' : {}
+  };
+</script>
+<script src="https://bauval.org/22/83f8d383611527dc0e826a81257cc020"></script>`, // TODO(owner): paste Adsterra banner code here
   },
   'result-banner': {
     id: 'result-banner',
     description: 'Banner below the generated QR and download controls (e.g. 300x250)',
     width: 300,
     height: 250,
-    snippet: null, // TODO(owner): paste Adsterra banner code here
+    snippet: `<script>
+  atOptions = {
+    'key' : '1e229b71ffa9d7cbf0981b88283b5bc9',
+    'format' : 'iframe',
+    'height' : 50,
+    'width' : 320,
+    'params' : {}
+  };
+</script>
+<script src="https://bauval.org/22/1e229b71ffa9d7cbf0981b88283b5bc9"></script>`, // TODO(owner): paste Adsterra banner code here
   },
   'footer-banner': {
     id: 'footer-banner',
     description: 'Responsive footer banner (e.g. 728x90)',
     width: 728,
     height: 90,
-    snippet: null, // TODO(owner): paste Adsterra banner code here
+    snippet: `<script>
+  atOptions = {
+    'key' : '83f8d383611527dc0e826a81257cc020',
+    'format' : 'iframe',
+    'height' : 90,
+    'width' : 728,
+    'params' : {}
+  };
+</script>
+<script src="https://bauval.org/22/83f8d383611527dc0e826a81257cc020"></script>`, // TODO(owner): paste Adsterra banner code here
   },
 }
 
